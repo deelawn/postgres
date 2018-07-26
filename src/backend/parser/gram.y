@@ -385,7 +385,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 				qualified_name_list any_name any_name_list type_name_list
 				any_operator expr_list attrs
 				target_list opt_target_list insert_column_list set_target_list
-				set_clause_list set_clause
+				recur_target_list set_clause_list set_clause
 				def_list operator_def_list indirection opt_indirection
 				reloption_list group_clause TriggerFuncArgs select_limit
 				opt_select_limit opclass_item_list opclass_drop_list
@@ -492,6 +492,8 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 %type <range>	relation_expr_opt_alias
 %type <node>	tablesample_clause opt_repeatable_clause
 %type <target>	target_el set_target insert_column_item
+%type <target>	allbut_select allbut_el
+%type <list>	allbut_list
 
 %type <str>		generic_option_name
 %type <node>	generic_option_arg
@@ -608,8 +610,8 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 
 /* ordinary key words in alphabetical order */
 %token <keyword> ABORT_P ABSOLUTE_P ACCESS ACTION ADD_P ADMIN AFTER
-	AGGREGATE ALL ALSO ALTER ALWAYS ANALYSE ANALYZE AND ANY ARRAY AS ASC
-	ASSERTION ASSIGNMENT ASYMMETRIC AT ATTACH ATTRIBUTE AUTHORIZATION
+	AGGREGATE ALL ALLBUT ALSO ALTER ALWAYS ANALYSE ANALYZE AND ANY ARRAY AS 
+	ASC ASSERTION ASSIGNMENT ASYMMETRIC AT ATTACH ATTRIBUTE AUTHORIZATION
 
 	BACKWARD BEFORE BEGIN_P BETWEEN BIGINT BINARY BIT
 	BOOLEAN_P BOTH BY
@@ -10478,9 +10480,7 @@ ClusterStmt:
 					ClusterStmt *n = makeNode(ClusterStmt);
 					n->relation = $3;
 					n->indexname = $4;
-					n->options = 0;
-					if ($2)
-						n->options |= CLUOPT_VERBOSE;
+					n->verbose = $2;
 					$$ = (Node*)n;
 				}
 			| CLUSTER opt_verbose
@@ -10488,9 +10488,7 @@ ClusterStmt:
 					ClusterStmt *n = makeNode(ClusterStmt);
 					n->relation = NULL;
 					n->indexname = NULL;
-					n->options = 0;
-					if ($2)
-						n->options |= CLUOPT_VERBOSE;
+					n->verbose = $2;
 					$$ = (Node*)n;
 				}
 			/* kept for pre-8.3 compatibility */
@@ -10499,9 +10497,7 @@ ClusterStmt:
 					ClusterStmt *n = makeNode(ClusterStmt);
 					n->relation = $5;
 					n->indexname = $3;
-					n->options = 0;
-					if ($2)
-						n->options |= CLUOPT_VERBOSE;
+					n->verbose = $2;
 					$$ = (Node*)n;
 				}
 		;
@@ -14617,8 +14613,13 @@ opt_target_list: target_list						{ $$ = $1; }
 		;
 
 target_list:
+			recur_target_list						{ $$ = $1; }
+			| allbut_select                         { $$ = list_make1($1); }
+		;
+
+recur_target_list:
 			target_el								{ $$ = list_make1($1); }
-			| target_list ',' target_el				{ $$ = lappend($1, $3); }
+			| recur_target_list ',' target_el		{ $$ = lappend($1, $3); }
 		;
 
 target_el:	a_expr AS ColLabel
@@ -14667,6 +14668,41 @@ target_el:	a_expr AS ColLabel
 				}
 		;
 
+/*****************************************************************************
+ *
+ *	ALLBUT list for SELECT
+ *
+ *****************************************************************************/
+
+allbut_select:	
+			ALLBUT allbut_list
+				{
+					AllBut *n = makeNode(AllBut);
+					n->fields = $2;
+					n->location = @2;
+
+					$$ = makeNode(ResTarget);
+					$$->name = NULL;
+					$$->indirection = NIL;
+					$$->val = (Node *)n;
+					$$->location = @2;
+				}
+		;
+
+allbut_list:
+			allbut_el									{ $$ = list_make1($1); }
+			| allbut_list ',' allbut_el					{ $$ = lappend($1, $3); }
+		;
+
+allbut_el:	a_expr
+				{
+					$$ = makeNode(ResTarget);
+					$$->name = NULL;
+					$$->indirection = NIL;
+					$$->val = (Node *)$1;
+					$$->location = @1;
+				}
+		;
 
 /*****************************************************************************
  *
