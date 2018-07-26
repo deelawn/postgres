@@ -181,6 +181,10 @@ transformTargetList(ParseState *pstate, List *targetlist,
 					continue;
 				}
 			}
+			else if (IsA(res->val, AllBut))
+			{
+				continue;
+			}
 		}
 
 		/*
