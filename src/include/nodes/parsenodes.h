@@ -248,6 +248,16 @@ typedef struct ParamRef
 } ParamRef;
 
 /*
+ * AllBut - selects all columns but those specified
+ */
+typedef struct AllBut 
+{
+	NodeTag		type;
+	List 		*fields;		/* names of the fields to exclude */
+	int 		location;
+} AllBut;
+
+/*
  * A_Expr - infix, prefix, and postfix expressions
  */
 typedef enum A_Expr_Kind
@@ -3112,18 +3122,12 @@ typedef struct AlterSystemStmt
  *		Cluster Statement (support pbrown's cluster index implementation)
  * ----------------------
  */
-typedef enum ClusterOption
-{
-	CLUOPT_RECHECK,				/* recheck relation state */
-	CLUOPT_VERBOSE				/* print progress info */
-} ClusterOption;
-
 typedef struct ClusterStmt
 {
 	NodeTag		type;
 	RangeVar   *relation;		/* relation being indexed, or NULL if all */
 	char	   *indexname;		/* original index defined */
-	int			options;		/* OR of ClusterOption flags */
+	bool		verbose;		/* print progress info */
 } ClusterStmt;
 
 /* ----------------------

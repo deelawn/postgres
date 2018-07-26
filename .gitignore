@@ -42,3 +42,10 @@ lib*.pc
 /Debug/
 /Release/
 /tmp_install/
+
+# Added by me
+/.vscode/
+/.vs/
+src/gram.output
+src/gram.tab.c
+postgres.vcxproj.user
